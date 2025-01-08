@@ -1,0 +1,23 @@
+{
+  "name": "ticexchange",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+   "start": "npm src/app.js",
+    "dev": "nodemon src/app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mahesh0843/ticxchange.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Mahesh0843/ticxchange/issues"
+  },
+  "homepage": "https://github.com/Mahesh0843/ticxchange#readme",
+  "description": "",
+  "dependencies": {
+    "express": "^4.21.2"
+  }
+}
