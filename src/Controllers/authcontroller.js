@@ -3,25 +3,52 @@ const app=express();
 
 const {validatesignup,validateloginpassword}= require("../utils/validations");
 const User=require("../models/User");
-const bcrypt=require("bcrypt");
+const nodemailer = require('nodemailer');
 const jwt = require("jsonwebtoken");
+const bcrypt = require('bcryptjs');
 
-exports.signup= async (req,res)=>{
-    try{
-        validatesignup(req);
-        const salt = await bcrypt.genSalt(10);
-        const {firstName,lastName,emailId,password}=req.body;
-        const passwordHash=await bcrypt.hash(password,salt);
-        const user = await User.create({firstName,lastName,emailId,password:passwordHash});
-        res.status(201).json({ message: 'User Signup successfully' });
+// Nodemailer Transporter
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: 'process.env.EMAIL_USER',
+    pass: 'process.env.EMAIL_PASS'
+  }
+});
 
-    }
-    catch(err)
-    {
-        console.error('Signup error:', err);
-        res.status(500).json({ error: 'User signup failed' });
-    }
+// User Signup
+exports.signup = async (req, res) => {
+  try {
+    validatesignup(req);
+    const { name, email, password, phoneNumber, role } = req.body;
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) return res.status(400).json({ message: 'User already exists' });
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create user
+    const user = await User.create({ name, email, password: hashedPassword, phoneNumber, role });
+
+    // Generate Token for Verification
+    const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+    // Verification Email
+    const verificationLink = `http://localhost:5000/api/auth/verify-email?token=${token}`;
+    await transporter.sendMail({
+      to: email,
+      subject: 'Verify Your Email',
+      html: `<p>Click <a href="${verificationLink}">here</a> to verify your email.</p>`
+    });
+
+    res.status(201).json({ message: 'Signup successful! Verification email sent.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
 };
+
 
 exports.login= async (req,res)=>{
     try{

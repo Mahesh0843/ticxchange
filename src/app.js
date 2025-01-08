@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 
 // Database Connection
-mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/ticket_exchange')
+mongoose.connect(process.env.MONGO_URL || 'mongodb://localhost:27017/ticket_exchange')
     .then(() => console.log('MongoDB Connected'))
     .catch((err) => console.error('MongoDB Connection Error:', err));
 
