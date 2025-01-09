@@ -1,73 +1,7 @@
-// const mongoose = require("mongoose");
-
-// const userSchema = new mongoose.Schema(
-//   {
-//     userId: { type: String, unique: true, required: true },
-//     name: {
-//       type: String,
-//       required: true,
-//       trim: true,
-//     },
-//     email: {
-//       type: String,
-//       required: true,
-//       unique: true,
-//       trim: true,
-//     },
-//     password: {
-//       type: String,
-//       required: true,
-//     },
-//     role: {
-//       type: String,
-//       enum: [],
-//       required: true,
-      
-//     },
-//     phoneNumber: {
-//       type: String, required: true 
-//     },
-//     phoneVerified: { type: Boolean, default: false },
-//     ratings: [
-//       {
-//         type: mongoose.Schema.Types.ObjectId,
-//         ref: "Rating",
-//       },
-//     ],
-//     averageRating: {
-//       type: Number,
-//       default: 0,
-//     },
-//     ticketsSold: {
-//       type: Number,
-//       default: 0,
-//     },
-//     ticketsAllowed: {
-//       type: Number,
-//       default: 2,
-//     },
-//     accountStatus: {
-//       type: String,
-//       enum: ["active", "warned", "blocked"],
-//       default: "active",
-//     },
-//   },
-//   { timestamps: true }
-// );
-
-
-// module.exports = mongoose.model("User", userSchema);
-
-
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema(
   {
-    userId: {
-      type: String,
-      required: true,
-      unique: true,
-    },
     name: {
       type: String,
       required: true,
