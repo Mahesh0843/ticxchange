@@ -30,3 +30,25 @@ exports.validatesignup = (req) => {
     }
 
 };
+
+exports.validateEditprofileData=(req)=>{
+    const allowedEditFields=[
+        "name",
+        "email",
+        "role",
+    ];
+    const isEditAllowed=Object.keys(req.body).every((key)=>
+    allowedEditFields.includes(key));
+    return isEditAllowed;
+};
+
+exports.validateloginpassword= async (password,passwordHash) =>
+    {
+        console.log("Provided Password:", password);
+        console.log("Stored Hash:", passwordHash);
+        const isMatch = await bcrypt.compare(password, passwordHash);
+        if(!isMatch)
+        {
+            throw new Error("Invalid credentials");
+        }
+    };

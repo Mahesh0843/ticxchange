@@ -118,8 +118,8 @@ exports.verifyPhoneNumber = async (req, res) => {
 
 exports.login= async (req,res)=>{
     try{
-    const {emailId,password}=req.body;
-    const user=await User.findOne({emailId:emailId});
+    const {email,password}=req.body;
+    const user=await User.findOne({email});
     if(!user)
     {
         throw new Error("Invalid credentials");
