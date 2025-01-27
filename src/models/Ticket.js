@@ -1,18 +1,58 @@
+// // models/Ticket.js
+// const mongoose = require('mongoose');
+
+// const ticketSchema = new mongoose.Schema({
+//   ticketId: { type: String, required: true, unique: true },
+//   eventName: { type: String, required: true },
+//   eventDate: { type: Date, required: true },
+//   seatNumber: { type: String, required: true },
+//   price: { type: Number, required: true },
+//   numberOfTickets: { type: Number, required: true },
+//   venue: { type: String, required: true },
+//   sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+//   buyerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User'},
+//   isAvailable: { type: Boolean, default: true },
+//   uniqueIdentifier: { type: String, required: true, unique: true },
+//   uploadedAt: { type: Date, default: Date.now },
+//   imageUrl: { type: String },
+// });
+
+// module.exports = mongoose.model('Ticket', ticketSchema);
+
+
+// models/Ticket.js
 const mongoose = require('mongoose');
 
 const ticketSchema = new mongoose.Schema({
-    ticketId: { type: String, unique: true, required: true },
-    sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    eventName: { type: String, required: true },
-    eventDate: { type: Date, required: true },
-    seatNumber: { type: String },
-    price: { type: Number, required: true },
-    isAvailable: { type: Boolean, default: true },
-    uploadedAt: { type: Date, default: Date.now },
-    uniqueIdentifier: { type: String },
-    buyerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-    venue: { type: String, required: true }, // New field for venue
-    numberOfTickets: { type: Number, required: true } // New field for number of tickets
+  ticketId: { type: String, required: true, unique: true },
+  eventName: { type: String, required: true },
+  eventDate: { type: Date, required: true },
+  seatNumber: { type: String, required: true },
+  price: { type: Number, required: true },
+  numberOfTickets: { type: Number, required: true },
+  venue: { type: String, required: true },
+  sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  buyerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  isAvailable: { type: Boolean, default: true },
+  uniqueIdentifier: { type: String, required: true, unique: true },
+  uploadedAt: { type: Date, default: Date.now },
+  imageUrl: { type: String },
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      required: true,
+      default: 'Point',
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+      required: true,
+    },
+    city: { type: String }, // Add city field
+  },
 });
 
+ticketSchema.index({ location: '2dsphere' }); // Enable geospatial queries.
+
 module.exports = mongoose.model('Ticket', ticketSchema);
+

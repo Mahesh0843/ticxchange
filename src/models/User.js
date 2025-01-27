@@ -51,7 +51,7 @@ const userSchema = new mongoose.Schema(
     ],
     averageRating: {
       type: Number,
-      default: 0,
+      default: 5.0,
     },
     ticketsSold: {
       type: Number,
@@ -60,6 +60,10 @@ const userSchema = new mongoose.Schema(
     ticketsAllowed: {
       type: Number,
       default: 2, // Default for new sellers
+    },
+    isNewSeller: {
+      type: Boolean,
+      default: true // New users are considered new sellers initially
     },
     accountStatus: {
       type: String,

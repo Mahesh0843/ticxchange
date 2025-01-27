@@ -34,17 +34,52 @@ exports.signup = async (req, res) => {
     // Create user
     const user = await User.create({ name, email, password: hashedPassword, phoneNumber, role });
 
+    // const use = await User.findOne({ email });
+    // // Generate Token for Verification
+    // console.log(use._id);
+    // const token = jwt.sign({ _id: use._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+    // // Verification Email
+    // const verificationLink = `${process.env.CLIENT_URL}/api/auth/verify-email?token=${token}`;
+    // await transporter.sendMail({
+    //   to: email,
+    //   subject: 'Verify Your Email',
+    //   html: `<p style="font-size: 18px;">Click <a href="${verificationLink}">here</a> to verify your email.</p>`
+    // });
+
     const use = await User.findOne({ email });
-    // Generate Token for Verification
-    console.log(use._id);
-    const token = jwt.sign({ _id: use._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    // Verification Email
-    const verificationLink = `${process.env.CLIENT_URL}/api/auth/verify-email?token=${token}`;
-    await transporter.sendMail({
-      to: email,
-      subject: 'Verify Your Email',
-      html: `<p style="font-size: 18px;">Click <a href="${verificationLink}">here</a> to verify your email.</p>`
-    });
+
+// Generate Token for Verification
+console.log(use._id);
+const token = jwt.sign({ _id: use._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+// Verification Email
+const verificationLink = `${process.env.CLIENT_URL}/api/auth/verify-email?token=${token}`;
+await transporter.sendMail({
+  to: email,
+  subject: 'Verify Your Email',
+  html: `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+      <div style="background-color: rgba(55,68,98,255); padding: 20px; text-align: center; color: #fff;">
+        <img src="https://media-hosting.imagekit.io//21c734e810444e2d/WhatsApp%20Image%202025-01-06%20at%2009.53.33_a530b1bc.jpg?Expires=1832139135&Key-Pair-Id=K2ZIVPTIP2VGHC&Signature=WkKon~T9v93sjYASLKVcY44Szj3i1JdjMBUUoTavvgGQtMc3fTPH9HYLFx88dxrC3DD3kf1tElWGEbVqAZs2MvBByQstnHdOzgr3u78El7PcHBozhWYOwCS2-tEX2JxVr9uFNShQKvVEXoOlNPDHHmA4WxSr4fkfFpLlDSX9IyExnC4EMlohXIaPzTI0bC0Mi04EiOm2I0iPWz2vmh-a3HIcrTdbwusuERnrPJVfGRZ8ZWGgLtn1Og3WDA88DTlpqFGLesqAaO9KTjmndJzw~ZxHWxr3oEYsvHDsXFLU5XEB~2dLAS9XdGy4hU3QReEi5lHJB5dKKZ2U7adVo4pswQ__" alt="Ticxchange Logo" width="200">
+        <h2>Thanks for signing up with Ticxchange!</h2>
+      </div>
+      <div style="padding: 20px; text-align: center;">
+        <p>Click below to <strong>verify</strong> your account.</p>
+        <a href="${verificationLink}" style="background-color: rgba(55,68,98,255); color: #faf8e7; padding: 12px 24px; text-decoration: none; font-size: 18px; border-radius: 4px; display: inline-block;">
+          Verify Account
+        </a>
+        <p style="margin-top: 20px;">To easily log in later, save this URL:</p>
+        <a href="${process.env.CLIENT_URL}/api/auth/verify-email?token=${token}" style="color: #0176D3;">${process.env.CLIENT_URL}/api/auth/verify-email?token=${token}</a>
+        <p><strong>Username:</strong> ${email}</p>
+        <p>Again, welcome to Ticxchnage!</p>
+      </div>
+      <div style="background-color: #f4f4f4; padding: 15px; font-size: 12px; text-align: center; color: #666;">
+        © Copyright 2000-2024 <a href="" style="color: #0176D3;">Ticxchange.com</a>, inc. All rights reserved.
+      </div>
+    </div>
+  `
+});
+
 
     res.status(201).json({ message: 'Signup successful! Verification email sent.' });
   } catch (error) {
@@ -118,12 +153,19 @@ exports.verifyPhoneNumber = async (req, res) => {
 
 exports.login= async (req,res)=>{
     try{
+      
     const {email,password}=req.body;
+    
     const user=await User.findOne({email});
     if(!user)
     {
         throw new Error("Invalid credentials");
     }
+
+    if (!user.isVerified) {
+      throw new Error("Email not verified. Please verify your email to proceed.");
+    }
+
     await validateloginpassword(password, user.password);
     const token = jwt.sign({_id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
     res.cookie("token",token,{

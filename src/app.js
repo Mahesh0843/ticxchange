@@ -4,7 +4,9 @@ const express = require('express');
 const connectDB = require('./Config/db'); 
 const cookieParser = require('cookie-parser'); 
 const authRoutes = require('./routes/auth'); 
-
+const ticketRoutes= require('./routes/tickets');
+const profileRoutes= require('./routes/profile');
+const viewticketRoutes=require('./routes/viewtickets')
 const app = express();
 
 // Middleware
@@ -13,6 +15,9 @@ app.use(cookieParser());
 
 // Routes
 app.use('/api/auth', authRoutes); 
+app.use('/api/profile',profileRoutes);
+app.use('/api/tickets',ticketRoutes); 
+app.use('/api/viewtickets',viewticketRoutes); 
 
 // Database Connection
 connectDB()

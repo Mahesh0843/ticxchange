@@ -14,7 +14,6 @@ exports.profileview=async (req,res)=>{
     }
 };
 
-
 exports.updateUserProfile = async(req,res)=>{
     try{
         if(!validateEditprofileData(req))

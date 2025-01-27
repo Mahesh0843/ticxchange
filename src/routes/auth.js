@@ -1,8 +1,8 @@
 const express=require("express");
 const authRouter=express.Router();
-const {signup,logout,login}=require("../Controllers/authcontroller");
-const { verifyPhoneNumber } = require('../Controllers/authcontroller');
-const {verifyEmail}=require("../Controllers/authcontroller");
+const {signup,logout,login}=require("../controllers/authcontroller");
+const { verifyPhoneNumber } = require('../controllers/authcontroller');
+const {verifyEmail}=require("../controllers/authcontroller");
 
 authRouter.post("/signup",signup);
 authRouter.post("/login",login);

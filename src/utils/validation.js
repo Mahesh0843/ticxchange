@@ -1,9 +1,9 @@
 const validator = require("validator");
+const bcrypt = require('bcrypt');
 
 exports.validatesignup = (req) => {
     const { name, email, password, phoneNumber, role } = req.body;
 
-    // Validate name
     if (!name || name.trim().length === 0) {
         throw new Error("Name is required and cannot be empty.");
     }
@@ -24,7 +24,6 @@ exports.validatesignup = (req) => {
         throw new Error("Password must be strong (at least 8 characters, including uppercase, lowercase, numbers, and symbols).");
     }
 
-    // Validate phone number
     if (!phoneNumber || !validator.isMobilePhone(phoneNumber, "any")) {
         throw new Error("Phone number is not valid.");
     }
@@ -43,12 +42,15 @@ exports.validateEditprofileData=(req)=>{
 };
 
 exports.validateloginpassword= async (password,passwordHash) =>
-    {
+{
         console.log("Provided Password:", password);
         console.log("Stored Hash:", passwordHash);
         const isMatch = await bcrypt.compare(password, passwordHash);
+
         if(!isMatch)
         {
             throw new Error("Invalid credentials");
         }
-    };
+};
+
+
