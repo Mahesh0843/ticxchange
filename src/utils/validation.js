@@ -1,16 +1,30 @@
 const validator = require("validator");
 const bcrypt = require('bcrypt');
 
-exports.validatesignup = (req) => {
-    const { name, email, password, phoneNumber, role } = req.body;
+exports.validateSignup = (req) => {
+    const { 
+        firstName, 
+        lastName, 
+        email, 
+        password, 
+        phoneNumber, 
+        role,
+        photoUrl 
+    } = req.body;
 
-    if (!name || name.trim().length === 0) {
-        throw new Error("Name is required and cannot be empty.");
+    // Validate first name
+    if (!firstName || firstName.trim().length < 2 || firstName.trim().length > 50) {
+        throw new Error("First name must be between 2 and 50 characters.");
+    }
+
+    // Validate last name
+    if (!lastName || lastName.trim().length < 2 || lastName.trim().length > 50) {
+        throw new Error("Last name must be between 2 and 50 characters.");
     }
 
     // Validate email
     if (!email || !validator.isEmail(email)) {
-        throw new Error("Email is not valid!");
+        throw new Error("Please enter a valid email address.");
     }
 
     // Validate password
@@ -21,36 +35,98 @@ exports.validatesignup = (req) => {
         minNumbers: 1,
         minSymbols: 1
     })) {
-        throw new Error("Password must be strong (at least 8 characters, including uppercase, lowercase, numbers, and symbols).");
+        throw new Error("Password must be at least 8 characters long and include uppercase, lowercase, numbers, and symbols.");
     }
 
-    if (!phoneNumber || !validator.isMobilePhone(phoneNumber, "any")) {
-        throw new Error("Phone number is not valid.");
+    // Validate Indian phone number (10-digit format)
+    if (!phoneNumber || !phoneNumber.match(/^[6-9]\d{9}$/)) {
+        throw new Error("Please enter a valid 10-digit Indian phone number.");
     }
 
+
+    // Validate role
+    if (role && !["buyer", "seller"].includes(role)) {
+        throw new Error("Role must be either 'buyer' or 'seller'.");
+    }
+
+    // Validate photoUrl if provided
+    if (photoUrl && !validator.isURL(photoUrl)) {
+        throw new Error("Please provide a valid photo URL.");
+    }
 };
 
-exports.validateEditprofileData=(req)=>{
-    const allowedEditFields=[
-        "name",
-        "email",
-        "role",
+exports.validateEditProfileData = (req) => {
+    const allowedEditFields = [
+        "firstName",
+        "lastName",
+        "photoUrl",
     ];
-    const isEditAllowed=Object.keys(req.body).every((key)=>
-    allowedEditFields.includes(key));
-    return isEditAllowed;
-};
 
-exports.validateloginpassword= async (password,passwordHash) =>
-{
-        console.log("Provided Password:", password);
-        console.log("Stored Hash:", passwordHash);
+    // Check if all provided fields are allowed to be edited
+    const isEditAllowed = Object.keys(req.body).every((key) =>
+        allowedEditFields.includes(key)
+    );
+
+    if (!isEditAllowed) {
+        throw new Error("Invalid fields provided for update.");
+    }
+
+    // Validate individual fields if they exist in the request
+    const { 
+        firstName, 
+        lastName,
+        photoUrl,
+    } = req.body;
+
+    if (firstName && (firstName.trim().length < 2 || firstName.trim().length > 50)) {
+        throw new Error("First name must be between 2 and 50 characters.");
+    }
+
+    if (lastName && (lastName.trim().length < 2 || lastName.trim().length > 50)) {
+        throw new Error("Last name must be between 2 and 50 characters.");
+    }
+
+    if (photoUrl && !validator.isURL(photoUrl)) {
+        throw new Error("Please provide a valid photo URL.");
+    }
+    
+    return true;
+};
+exports.validateLoginPassword = async (password, passwordHash) => {
+    if (!password || !passwordHash) {
+        throw new Error("Password and hash are required.");
+    }
+
+    try {
         const isMatch = await bcrypt.compare(password, passwordHash);
-
-        if(!isMatch)
-        {
-            throw new Error("Invalid credentials");
+        if (!isMatch) {
+            throw new Error("Invalid credentials.");
         }
+        return true;
+    } catch (error) {
+        throw new Error("Error validating password.");
+    }
 };
 
+// Additional validation helpers
+exports.validateOTP = (otp) => {
+    if (!otp || typeof otp !== 'string' || otp.length !== 6 || !/^\d+$/.test(otp)) {
+        throw new Error("Invalid OTP format. Must be 6 digits.");
+    }
+    return true;
+};
 
+exports.validateAccountStatus = (status) => {
+    if (!["active", "warned", "blocked"].includes(status)) {
+        throw new Error("Invalid account status.");
+    }
+    return true;
+};
+
+exports.validateRating = (rating) => {
+    const numRating = Number(rating);
+    if (isNaN(numRating) || numRating < 1 || numRating > 5) {
+        throw new Error("Rating must be between 1 and 5.");
+    }
+    return true;
+};

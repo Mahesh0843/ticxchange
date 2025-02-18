@@ -1,94 +1,283 @@
 const Ticket = require('../models/Ticket');
+const moment = require('moment');
 
-// 1. Filter Tickets
+// Filter Tickets
+
 exports.filterTickets = async (req, res) => {
-  const { city, eventName, dateRange } = req.query;
-
   try {
-    const query = {};
-    if (city) query.city = city;
-    if (eventName) query.eventName = { $regex: eventName, $options: 'i' };
+    const { 
+      page = 1, 
+      limit = 10,
+      search = '',
+      city,
+      sortBy = 'eventDate',
+      sortOrder = 'asc',
+      eventType
+    } = req.query;
 
-    if (dateRange) {
-      const currentDate = new Date();
-      let startDate, endDate;
+    // Input validation
+    const pageNumber = parseInt(page) || 1;
+    const limitNumber = parseInt(limit) || 10;
+    const validatedSortOrder = ['asc', 'desc'].includes(sortOrder) ? sortOrder : 'asc';
 
-      if (dateRange === 'Today') {
-        startDate = new Date(currentDate.setHours(0, 0, 0, 0));
-        endDate = new Date(currentDate.setHours(23, 59, 59, 999));
-      } else if (dateRange === 'Tomorrow') {
-        startDate = new Date(currentDate.setDate(currentDate.getDate() + 1));
-        startDate.setHours(0, 0, 0, 0);
-        endDate = new Date(currentDate.setHours(23, 59, 59, 999));
-      } else if (dateRange === 'Weekend') {
-        const day = currentDate.getDay();
-        const daysUntilSaturday = (6 - day + 1) % 7;
-        const daysUntilSunday = (7 - day + 1) % 7;
+    // Always include isAvailable: true in base query
+    const query = { isAvailable: true };
 
-        startDate = new Date(currentDate.setDate(currentDate.getDate() + daysUntilSaturday));
-        startDate.setHours(0, 0, 0, 0);
-
-        endDate = new Date(currentDate.setDate(currentDate.getDate() + daysUntilSunday));
-        endDate.setHours(23, 59, 59, 999);
-      }
-
-      if (startDate && endDate) query.eventDate = { $gte: startDate, $lte: endDate };
+    // Event type filter
+    if (eventType && ['MOVIE', 'SPORT', 'EVENT'].includes(eventType.toUpperCase())) {
+      query.eventType = eventType.toUpperCase();
     }
 
-    const tickets = await Ticket.find(query);
-    res.status(200).json({ message: 'Filtered tickets retrieved successfully', tickets });
+    // Search filter
+    if (search) {
+      query.$and = [
+        { isAvailable: true },  // Ensure isAvailable is true even with search
+        {
+          $or: [
+            { eventName: { $regex: search, $options: 'i' } },
+            { venue: { $regex: search, $options: 'i' } }
+          ]
+        }
+      ];
+    }
+
+    // City filter
+    if (city) {
+      query['location.city'] = { 
+        $regex: new RegExp(city, 'i') 
+      };
+    }
+
+    // Validate sortBy field exists in schema
+    const validSortFields = ['eventDate', 'price', 'uploadedAt', 'eventType'];
+    const validatedSortBy = validSortFields.includes(sortBy) ? sortBy : 'eventDate';
+
+    const sort = { [validatedSortBy]: validatedSortOrder === 'asc' ? 1 : -1 };
+
+    const [tickets, total] = await Promise.all([
+      Ticket.find(query)
+        .populate('sellerId', 'firstName lastName photoUrl sellerStats accountStatus averageRating')
+        .sort(sort)
+        .skip((pageNumber - 1) * limitNumber)
+        .limit(limitNumber)
+        .lean(),
+      Ticket.countDocuments(query)
+    ]);
+
+    const totalPages = Math.ceil(total / limitNumber);
+
+    res.status(200).json({
+      success: true,
+      message: 'Tickets retrieved successfully',
+      data: {
+        tickets,
+        pagination: {
+          currentPage: pageNumber,
+          totalPages,
+          totalItems: total,
+          hasNextPage: pageNumber < totalPages,
+          hasPrevPage: pageNumber > 1,
+          limit: limitNumber
+        }
+      }
+    });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: 'Error while filtering tickets' });
+    res.status(500).json({ 
+      success: false,
+      message: 'Error while filtering tickets',
+      error: error.message 
+    });
   }
 };
-
-// 2. View All Tickets (Seller)
+// View Seller Tickets
 exports.viewSellerTickets = async (req, res) => {
-  const { id } = req.params;
-
   try {
-    const tickets = await Ticket.find({ sellerId: id });
-    res.status(200).json({ message: 'Seller tickets retrieved successfully', tickets });
+    const { page = 1, limit = 10 } = req.query;
+    const sellerId = req.user._id;
+
+    const tickets = await Ticket.find({ sellerId })
+      .populate('buyerId', 'firstName lastName email')
+      .sort({ uploadedAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    const total = await Ticket.countDocuments({ sellerId });
+    const totalPages = Math.ceil(total / limit);
+
+    res.status(200).json({
+      message: 'Seller tickets retrieved successfully',
+      data: {
+        tickets,
+        pagination: {
+          currentPage: Number(page),
+          totalPages,
+          totalItems: total,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1
+        }
+      }
+    });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: 'Error retrieving seller tickets' });
   }
 };
 
-// 3. View All Tickets (Buyer)
+// View Buyer Tickets
 exports.viewBuyerTickets = async (req, res) => {
-  const { id } = req.params;
-  
-
   try {
-    const tickets = await Ticket.find({ buyerId: id });
-    res.status(200).json({ message: 'Buyer tickets retrieved successfully', tickets });
+    const { page = 1, limit = 10 } = req.query;
+    const buyerId = req.user._id;
+
+    const tickets = await Ticket.find({ buyerId })
+      .populate('sellerId', 'firstName lastName email')
+      .sort({ eventDate: 1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean();
+
+    const total = await Ticket.countDocuments({ buyerId });
+    const totalPages = Math.ceil(total / limit);
+
+    res.status(200).json({
+      message: 'Buyer tickets retrieved successfully',
+      data: {
+        tickets,
+        pagination: {
+          currentPage: Number(page),
+          totalPages,
+          totalItems: total,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1
+        }
+      }
+    });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: 'Error retrieving buyer tickets' });
   }
 };
 
-// 4. Edit/Delete Ticket (Seller)
-exports.editDeleteTicket = async (req, res) => {
-  const { id, ticketid } = req.params;
-  if (id !== req.user_id) {
-    return res.status(403).json({ error: 'Unauthorized: You can only delete your own tickets.' });
-  }
-
+// Delete Ticket
+exports.deleteTicket = async (req, res) => {
   try {
-    const ticket = await Ticket.findOne({ _id: ticketid, sellerId: id });
+    const { ticketId } = req.params;
+    const sellerId = req.user._id;
+
+    const ticket = await Ticket.findOneAndDelete({ 
+      _id: ticketId, 
+      sellerId,
+      isAvailable: true 
+    });
 
     if (!ticket) {
-      return res.status(404).json({ error: 'Ticket not found or not authorized to edit' });
+      return res.status(404).json({ error: 'Ticket not found or not available for deletion' });
     }
 
-    // Delete ticket
-    await Ticket.findByIdAndDelete(ticketid);
-    res.status(200).json({ message: 'Ticket deleted successfully' });
+    res.status(200).json({ 
+      message: 'Ticket deleted successfully',
+      ticketId
+    });
   } catch (error) {
-    console.error(error);
     res.status(500).json({ error: 'Error deleting the ticket' });
   }
+}; 
+
+
+// ... existing code ...
+
+// Get all tickets
+exports.getTickets = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+
+    const tickets = await Ticket.find()
+      .populate('sellerId', 'firstName lastName rating')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(Number(limit))
+      .lean();
+
+    const total = await Ticket.countDocuments();
+    const totalPages = Math.ceil(total / limit);
+
+    res.status(200).json({
+      message: "Tickets fetched successfully",
+      data: {
+        tickets,
+        pagination: {
+          currentPage: Number(page),
+          totalPages,
+          totalItems: total,
+          hasNextPage: page < totalPages,
+          hasPrevPage: page > 1
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get tickets error:', error);
+    res.status(500).json({
+      error: "Failed to fetch tickets"
+    });
+  }
 };
+
+// Get single ticket details
+exports.getTicketDetails = async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+
+    const ticket = await Ticket.findById(ticketId)
+    .populate('sellerId', 'firstName lastName photoUrl sellerStats accountStatus averageRating')
+    .lean();
+
+    if (!ticket) {
+      return res.status(404).json({
+        error: "Ticket not found"
+      });
+    }
+
+    res.status(200).json({
+      message: "Ticket details fetched successfully",
+      data: ticket
+    });
+  } catch (error) {
+    console.error('Get ticket details error:', error);
+    res.status(500).json({
+      error: "Failed to fetch ticket details"
+    });
+  }
+};
+
+// Add a dedicated search endpoint
+exports.searchTickets = async (req, res) => {
+  try {
+    const { q = '' } = req.query;
+
+    const tickets = await Ticket.find({
+      isAvailable: true,
+      $or: [
+        { title: { $regex: q, $options: 'i' } },
+        { description: { $regex: q, $options: 'i' } },
+        { eventName: { $regex: q, $options: 'i' } }
+      ]
+    })
+    .populate('sellerId', 'firstName lastName rating')
+    .sort({ eventDate: 'asc' })
+    .limit(10)
+    .lean();
+
+    res.status(200).json({
+      success: true,
+      message: 'Search results retrieved successfully',
+      data: tickets
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false,
+      message: 'Error while searching tickets',
+      error: error.message 
+    });
+  }
+};
+
+// ... existing code ...

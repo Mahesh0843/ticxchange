@@ -7,17 +7,40 @@ const authRoutes = require('./routes/auth');
 const ticketRoutes= require('./routes/tickets');
 const profileRoutes= require('./routes/profile');
 const viewticketRoutes=require('./routes/viewtickets')
+const userRoutes=require('./routes/user');
+const requestRoutes= require('./routes/connection');
 const app = express();
+const cors=require("cors");
+const http=require("http");
+const initializeSocket = require("./utils/socket");
+const chatRouter = require("./routes/Chat");
+const reviewRouter = require('./routes/reviewRoutes');
+const cleanupExpiredTickets = require('./crons/ticketCleanup');
 
 // Middleware
+app.use(cors({
+  origin:"http://localhost:5173",
+  credentials: true,
+}));
 app.use(express.json());
 app.use(cookieParser());
 
 // Routes
-app.use('/api/auth', authRoutes); 
-app.use('/api/profile',profileRoutes);
-app.use('/api/tickets',ticketRoutes); 
-app.use('/api/viewtickets',viewticketRoutes); 
+app.use('/', authRoutes); 
+app.use('/',profileRoutes);
+app.use('/',ticketRoutes);
+app.use('/',viewticketRoutes); 
+app.use('/',userRoutes);
+app.use('/',requestRoutes);
+app.use('/',chatRouter);
+app.use('/', reviewRouter);
+
+
+const server=http.createServer(app);
+initializeSocket(server);
+
+// Initialize the ticket cleanup cron job
+cleanupExpiredTickets();
 
 // Database Connection
 connectDB()
@@ -25,7 +48,7 @@ connectDB()
     console.log("Database connected!!");
     console.log('Database URL:', process.env.DATABASE_URL); 
     const PORT = process.env.PORT || 5000; 
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
   })

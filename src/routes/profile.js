@@ -1,11 +1,12 @@
 const express = require("express");
 const profileRouter = express.Router();
 
-const { profileview, updatePassword, updateUserProfile } = require("../controllers/profilecontroller");
+const { profileview, updatePassword, updateUserProfile,sendOTP,verifyOTP } = require("../controllers/profilecontroller");
 const { userAuth } = require("../middleware/auth");
 
-profileRouter.get("/view", userAuth, profileview);
-profileRouter.put("/edit", userAuth, updateUserProfile);
-profileRouter.patch("/update-password",userAuth, updatePassword);
-
+profileRouter.get("/profile/view", userAuth, profileview);
+profileRouter.patch("/profile/edit", userAuth, updateUserProfile);
+profileRouter.patch("/profile/update-password",userAuth, updatePassword);
+profileRouter.post("/profile/send-otp",userAuth,sendOTP);
+profileRouter.post("/profile/verify-otp",userAuth,verifyOTP)
 module.exports = profileRouter; 

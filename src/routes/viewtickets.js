@@ -1,26 +1,36 @@
 const express = require('express');
-const viewRouter = express.Router();
-const {userAuth}=require('../middleware/auth');
+const router = express.Router();
+const { userAuth } = require('../middleware/auth');
+const { 
+  filterTickets,
+  viewSellerTickets, 
+  viewBuyerTickets,
+  deleteTicket,
+  getTickets,
+  getTicketDetails
+} = require('../controllers/viewticketController');
+
+const verifyRole = (role) => (req, res, next) => {
+  if (req.user.role !== role) {
+    return res.status(403).json({ 
+      success: false,
+      error: `Access restricted to ${role}s only` 
+    });
+  }
+  next();
+};
+
+// Public routes
+router.get('/tickets/filter', filterTickets);
+router.get('/tickets', getTickets);
+router.get('/tickets/:ticketId', getTicketDetails);
 
 
-const {viewSellerTickets,editDeleteTicket, viewBuyerTickets, filterTickets } = require('../controllers/viewticketController');
+// Seller routes
+router.get('/seller/tickets', userAuth, verifyRole('seller'), viewSellerTickets);
+router.delete('/seller/tickets/:ticketId', userAuth, verifyRole('seller'), deleteTicket);
 
-const verifyRole = (role) => {
-    return (req, res, next) => {
-      const userRole = req.user.role;
-      if (userRole !== role) {
-        return res.status(403).json({ error: `Access restricted to ${role}s only` });
-      }
-      next();
-    };
-  };
+// Buyer routes
+router.get('/buyer/tickets', userAuth, verifyRole('buyer'), viewBuyerTickets);
 
-viewRouter.get('/filter', filterTickets);
-
-viewRouter.get('/:id',userAuth, verifyRole('seller'), viewSellerTickets);
-
-viewRouter.get('/:id',userAuth, verifyRole('buyer'), viewBuyerTickets);
-  
-viewRouter.get('/:id/:ticketid/edit',userAuth, verifyRole('seller'), editDeleteTicket);
-
-module.exports = viewRouter;
+module.exports = router;
