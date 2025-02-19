@@ -218,11 +218,18 @@ exports.login = async (req, res) => {
       process.env.JWT_SECRET, 
       { expiresIn: '24h' }
     );
+    // res.cookie('token', token, {
+    //   httpOnly: true,
+    //   secure: process.env.NODE_ENV === 'production', // true in production
+    //   sameSite: 'lax',
+    //   maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    // });
     res.cookie('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // true in production
-      sameSite: 'lax',
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      secure: true, // Required for HTTPS
+      sameSite: 'none', // Required for cross-site cookies
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      path: '/'
     });
 
     return res.status(200).json({
