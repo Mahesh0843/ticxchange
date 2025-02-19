@@ -17,6 +17,7 @@ const chatRouter = require('./routes/Chat');
 const reviewRouter = require('./routes/reviewRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const cleanupExpiredTickets = require('./crons/ticketCleanup');
+const analyticsRoutes = require('./routes/analyticsRoutes');
 
 // Middleware
 app.use(cors({
@@ -37,6 +38,7 @@ app.use('/',requestRoutes);
 app.use('/',chatRouter);
 app.use('/', reviewRouter);
 app.use('/notifications', notificationRoutes);
+app.use('/analytics', analyticsRoutes);
 
 
 const server=http.createServer(app);

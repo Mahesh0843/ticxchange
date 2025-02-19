@@ -112,4 +112,24 @@ reviewRouter.get('/ratings/user/:userId', async (req, res) => {
   }
 });
 
+// GET /api/ratings/seller/:sellerId
+reviewRouter.get('/ratings/seller/:sellerId', async (req, res) => {
+  try {
+    const ratings = await Rating.find({ sellerId: req.params.sellerId })
+      .sort({ createdAt: -1 })
+      .populate('buyerId', 'firstName lastName')
+      .limit(10);
+
+    res.json({
+      success: true,
+      ratings
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
 module.exports = reviewRouter; 

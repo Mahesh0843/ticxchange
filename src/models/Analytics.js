@@ -1,30 +1,47 @@
 const mongoose = require('mongoose');
 
 const analyticsSchema = new mongoose.Schema({
-  userId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
-    required: true,
+  totalViews: {
+    type: Number,
+    default: 0
+  },
+  uniqueVisitors: {
+    type: Number,
+    default: 0
+  },
+  visitorIds: [{
+    type: String,
     index: true
-  },
-  event: { 
-    type: String, 
-    required: true,
-    index: true
-  },
-  eventData: { 
-    type: Object 
-  },
-  metadata: {
-    userAgent: String,
-    ipAddress: String,
-    platform: String
+  }],
+  lastUpdated: {
+    type: Date,
+    default: Date.now
   }
-}, { 
-  timestamps: true 
+}, {
+  timestamps: true
 });
 
-// Compound index for common queries
-analyticsSchema.index({ userId: 1, event: 1, createdAt: -1 });
+// Create a static method to track unique visitors
+analyticsSchema.statics.trackVisitor = async function(visitorId) {
+  const analytics = await this.findOne();
+  
+  if (!analytics) {
+    return this.create({
+      totalViews: 1,
+      uniqueVisitors: 1,
+      visitorIds: [visitorId]
+    });
+  }
+
+  // Check if this is a unique visitor
+  if (!analytics.visitorIds.includes(visitorId)) {
+    analytics.uniqueVisitors += 1;
+    analytics.visitorIds.push(visitorId);
+  }
+  
+  analytics.totalViews += 1;
+  analytics.lastUpdated = new Date();
+  return analytics.save();
+};
 
 module.exports = mongoose.model('Analytics', analyticsSchema);
