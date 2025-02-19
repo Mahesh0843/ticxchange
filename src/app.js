@@ -4,19 +4,19 @@ const express = require('express');
 const connectDB = require('./Config/db'); 
 const cookieParser = require('cookie-parser'); 
 const authRoutes = require('./routes/auth'); 
-const ticketRoutes= require('./routes/tickets');
-const profileRoutes= require('./routes/profile');
-const viewticketRoutes=require('./routes/viewtickets')
-const userRoutes=require('./routes/user');
-const requestRoutes= require('./routes/connection');
+const ticketRoutes = require('./routes/tickets');
+const profileRoutes = require('./routes/profile');
+const viewticketRoutes = require('./routes/viewtickets');
+const userRoutes = require('./routes/user');
+const requestRoutes = require('./routes/connection');
 const app = express();
 const cors=require("cors");
 const http=require("http");
 const initializeSocket = require("./utils/socket");
-const chatRouter = require("./routes/Chat");
+const chatRouter = require('./routes/Chat');
 const reviewRouter = require('./routes/reviewRoutes');
-const cleanupExpiredTickets = require('./crons/ticketCleanup');
 const notificationRoutes = require('./routes/notificationRoutes');
+const cleanupExpiredTickets = require('./crons/ticketCleanup');
 
 // Middleware
 app.use(cors({
