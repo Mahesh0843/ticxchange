@@ -16,6 +16,7 @@ const initializeSocket = require("./utils/socket");
 const chatRouter = require("./routes/Chat");
 const reviewRouter = require('./routes/reviewRoutes');
 const cleanupExpiredTickets = require('./crons/ticketCleanup');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 // Middleware
 app.use(cors({
@@ -23,6 +24,7 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // Routes
@@ -34,6 +36,7 @@ app.use('/',userRoutes);
 app.use('/',requestRoutes);
 app.use('/',chatRouter);
 app.use('/', reviewRouter);
+app.use('/notifications', notificationRoutes);
 
 
 const server=http.createServer(app);
@@ -55,3 +58,5 @@ connectDB()
   .catch((err) => {
     console.error("MongoDB connection failed!", err); 
   });
+
+module.exports = app;

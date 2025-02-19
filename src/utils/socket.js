@@ -2,6 +2,7 @@ const socket = require("socket.io");
 const mongoose = require('mongoose');
 const Chat = require('../models/Chat');
 const ConnectionRequest = require('../models/ConnectionRequest');
+const Notification = require('../models/Notification');
 
 const initializeSocket = (server) => {
   const io = socket(server, {
@@ -11,6 +12,24 @@ const initializeSocket = (server) => {
       credentials: true
     },
   });
+
+  // Function to create and emit notification
+  const createNotification = async ({ recipient, message, type, relatedId, onModel }) => {
+    try {
+      const notification = await Notification.create({
+        recipient,
+        message,
+        type,
+        relatedId,
+        onModel
+      });
+
+      io.to(`notifications:${recipient}`).emit('notification', notification);
+      return notification;
+    } catch (error) {
+      console.error('Error creating notification:', error);
+    }
+  };
 
   io.on("connection", (socket) => {
     // Join chat room
@@ -33,6 +52,14 @@ const initializeSocket = (server) => {
       } catch (error) {
         console.error("Join chat error:", error);
         socket.emit("error", { message: "Failed to join chat" });
+      }
+    });
+
+    // Join notification room
+    socket.on('joinNotifications', (userId) => {
+      if (userId) {
+        socket.join(`notifications:${userId}`);
+        socket.userId = userId;
       }
     });
 
@@ -95,15 +122,78 @@ const initializeSocket = (server) => {
           messageId: newMessage._id
         });
 
+        // Create notification using the new function
+        await createNotification({
+          recipient: targetUserId,
+          message: `New message from ${firstName} ${lastName}`,
+          type: 'message',
+          relatedId: ticketId,
+          onModel: 'Chat'
+        });
+
       } catch (error) {
         console.error("Send message error:", error);
         socket.emit("error", { message: "Failed to send message" });
       }
     });
 
+    // Store user's socket id with their userId
+    socket.on('user_connected', (userId) => {
+      socket.userId = userId;
+    });
+
+    // Mark notification as read
+    socket.on('mark_notification_read', async (notificationId) => {
+      try {
+        const notification = await Notification.findByIdAndUpdate(
+          notificationId, 
+          { read: true },
+          { new: true }
+        );
+        
+        if (notification) {
+          // Emit to the user that notification was updated
+          socket.emit('notification_updated', notification);
+        }
+      } catch (error) {
+        console.error('Error marking notification as read:', error);
+        socket.emit("error", { message: "Failed to mark notification as read" });
+      }
+    });
+
+    // Mark all notifications as read and delete them
+    socket.on('mark_all_notifications_read', async () => {
+      try {
+        if (!socket.userId) return;
+
+        // First mark all as read
+        await Notification.updateMany(
+          { recipient: socket.userId, read: false },
+          { read: true }
+        );
+
+        // Then delete all read notifications
+        const result = await Notification.deleteMany({
+          recipient: socket.userId,
+          read: true
+        });
+
+        socket.emit('all_notifications_read_and_deleted', {
+          message: 'All notifications marked as read and deleted',
+          deletedCount: result.deletedCount
+        });
+      } catch (error) {
+        console.error('Error processing notifications:', error);
+        socket.emit("error", { message: "Failed to process notifications" });
+      }
+    });
+
     socket.on("disconnect", () => {
       if (socket.currentRoom) {
         socket.leave(socket.currentRoom);
+      }
+      if (socket.userId) {
+        socket.leave(`notifications:${socket.userId}`);
       }
       console.log("User disconnected");
     });
