@@ -4,7 +4,7 @@ const { userAuth } = require("../middleware/auth");
 const {
     getRequests,
     getconnections,
-} = require("../controllers/userController");
+} = require("../Controllers/userController");
 
 // Get received connection requests
 userRouter.get("/user/requests/received", userAuth, getRequests);

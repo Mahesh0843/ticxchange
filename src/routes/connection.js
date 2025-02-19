@@ -58,8 +58,8 @@
 const express = require("express");
 const requestRouter = express.Router();
 const { userAuth } = require("../middleware/auth");
-const { connectionReq, requestReview, getConnectionRequests } = require("../controllers/requestController");
-const {getconnections}= require("../controllers/userController");
+const { connectionReq, requestReview, getConnectionRequests } = require("../Controllers/requestController");
+const {getconnections}= require("../Controllers/userController");
 
 // Middleware to verify user roles
 const verifyRoleMiddleware = (role) => {

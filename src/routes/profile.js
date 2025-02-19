@@ -1,7 +1,7 @@
 const express = require("express");
 const profileRouter = express.Router();
 
-const { profileview, updatePassword, updateUserProfile,sendOTP,verifyOTP } = require("../controllers/profilecontroller");
+const { profileview, updatePassword, updateUserProfile,sendOTP,verifyOTP } = require("../Controllers/profilecontroller");
 const { userAuth } = require("../middleware/auth");
 
 profileRouter.get("/profile/view", userAuth, profileview);

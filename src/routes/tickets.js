@@ -13,8 +13,8 @@ const {
   getAllTickets,
   getSellerTickets,
   getNearbyTickets
-} = require('../controllers/ticketController');
-const {connectionReq} = require('../controllers/requestController');
+} = require('../Controllers/ticketController');
+const {connectionReq} = require('../Controllers/requestController');
 const Ticket = require('../models/Ticket');
 const Rating = require('../models/Rating');
 const ConnectionRequest = require('../models/ConnectionRequest');

@@ -8,7 +8,7 @@ const {
   deleteTicket,
   getTickets,
   getTicketDetails
-} = require('../controllers/viewticketController');
+} = require('../Controllers/viewticketController');
 
 const verifyRole = (role) => (req, res, next) => {
   if (req.user.role !== role) {
