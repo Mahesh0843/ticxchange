@@ -77,7 +77,7 @@ router.delete('/read-all', userAuth, async (req, res) => {
 });
 
 // Mark all as read and then delete them
-router.patch('/read-and-delete-all', userAuth, async (req, res) => {
+router.post('/read-and-delete-all', userAuth, async (req, res) => {
   try {
     // First mark all as read
     await Notification.updateMany(
