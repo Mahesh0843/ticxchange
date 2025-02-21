@@ -220,9 +220,10 @@ exports.login = async (req, res) => {
     );
     // res.cookie('token', token, {
     //   httpOnly: true,
-    //   secure: process.env.NODE_ENV === 'production', // true in production
+    //   secure: false, // false for HTTP in development
     //   sameSite: 'lax',
-    //   maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    //   maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    //   path: '/' // Add this to ensure the cookie is available across all paths
     // });
     res.cookie('token', token, {
       httpOnly: true,
@@ -231,6 +232,7 @@ exports.login = async (req, res) => {
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
       path: '/'
     });
+
 
     return res.status(200).json({
       success: true,
@@ -269,26 +271,59 @@ exports.login = async (req, res) => {
  */
 exports.verifyEmail = async (req, res) => {
   try {
-    const { token } = req.query; // Token passed as query parameter
+    const { token } = req.query;
+    
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "Verification token is required"
+      });
+    }
+
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const { _id } = decoded;
 
     const user = await User.findById(_id);
     if (!user) {
-      return res.status(404).send("User not found");
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
     }
 
     if (user.isVerified) {
-      return res.send("Email is already verified");
+      return res.status(200).json({
+        success: true,
+        message: "Email is already verified"
+      });
     }
 
     user.isVerified = true;
     await user.save();
 
-    res.send("Email verified successfully");
+    return res.status(200).json({
+      success: true,
+      message: "Email verified successfully"
+    });
+
   } catch (err) {
     console.error('verifyEmail error:', err);
-    res.status(400).send("Invalid or expired token");
+    if (err.name === 'JsonWebTokenError') {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid verification token"
+      });
+    }
+    if (err.name === 'TokenExpiredError') {
+      return res.status(400).json({
+        success: false,
+        message: "Verification token has expired"
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      message: "Error verifying email"
+    });
   }
 };
 
@@ -302,4 +337,258 @@ exports.logout = async (req, res) => {
     expires: new Date(Date.now())
   });
   res.send("Logout Successful!");
+};
+
+/**
+ * Handle forgot password request:
+ * - Validates email
+ * - Generates reset token
+ * - Sends reset email
+ */
+exports.forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Please provide email" });
+    }
+
+    const checkUser = await User.findOne({ email: email.toLowerCase() });
+
+    if (!checkUser) {
+      return res.status(400).json({ message: "User not found, please register" });
+    }
+
+    // Generate reset token
+    const token = jwt.sign({ email: checkUser.email }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+
+    // Create reset link
+    const resetLink = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
+
+    // Send email with styled template
+    await transporter.sendMail({
+      to: email,
+      subject: 'Ticxchange - Password Reset Request',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+          <div style="background-color: rgba(55,68,98,255); color: #faf8e7; padding: 20px; text-align: center;">
+            <h1 style="margin: 0; font-size: 24px;">Password Reset Request</h1>
+          </div>
+          <div style="padding: 20px; text-align: center;">
+            <p style="font-size: 16px;">Hi ${checkUser.firstName},</p>
+            <p style="font-size: 16px;">We received a request to reset your password. Click the button below to create a new password:</p>
+            <a href="${resetLink}" 
+               style="background-color: rgba(55,68,98,255); 
+                      color: #faf8e7; 
+                      padding: 12px 24px; 
+                      text-decoration: none; 
+                      font-size: 18px; 
+                      border-radius: 4px; 
+                      display: inline-block;
+                      margin: 20px 0;">
+              Reset Password
+            </a>
+            <p style="margin-top: 20px; font-size: 14px;">Or copy and paste this link in your browser:</p>
+            <p style="color: #0176D3; word-break: break-all;">${resetLink}</p>
+            <p style="margin-top: 20px; font-size: 14px;">This link will expire in 1 hour.</p>
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd;">
+              <p style="font-size: 14px; color: #666;">
+                If you didn't request this password reset, you can safely ignore this email.
+              </p>
+            </div>
+          </div>
+          <div style="background-color: #f8f9fa; padding: 20px; text-align: center; font-size: 12px; color: #666;">
+            <p>© ${new Date().getFullYear()} Ticxchange. All rights reserved.</p>
+            <p>This is an automated email, please do not reply.</p>
+          </div>
+        </div>
+      `
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Password reset link sent successfully to your email",
+    });
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    return res.status(500).json({ message: "Something went wrong" });
+  }
+};
+
+/**
+ * Reset password using token:
+ * - Validates token
+ * - Updates password
+ */
+exports.resetPassword = async (req, res) => {
+  try {
+    const { token } = req.query; // Use query params for token
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ message: "Please provide password" });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findOne({ email: decoded.email });
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
+    user.password = hashedPassword;
+    await user.save();
+
+    return res.status(200).json({ message: "Password reset successfully" });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    return res.status(500).json({ message: "Something went wrong" });
+  }
+};
+
+/**
+ * Verify reset password token:
+ * - Validates token without changing password
+ */
+exports.verifyResetToken = async (req, res) => {
+  try {
+    const { token } = req.query;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: "Reset token is required"
+      });
+    }
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded._id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Token is valid",
+      data: {
+        email: user.email
+      }
+    });
+
+  } catch (error) {
+    console.error('Verify reset token error:', error);
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired reset token"
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      message: "Error verifying reset token"
+    });
+  }
+};
+
+/**
+ * Change password for authenticated user:
+ * - Validates current password
+ * - Updates to new password
+ */
+exports.changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user._id; // From auth middleware
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password and new password are required"
+      });
+    }
+
+    // Find user and include password field
+    const user = await User.findById(userId).select('+password');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    // Verify current password
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: "Current password is incorrect"
+      });
+    }
+
+    // Hash and update new password
+    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    user.password = hashedPassword;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Password changed successfully"
+    });
+
+  } catch (error) {
+    console.error('Change password error:', error);
+    return res.status(500).json({
+      success: false,
+      message: "Error changing password",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
+/**
+ * Submit a suggestion from any user:
+ * - Checks if the email exists in the database
+ * - Sends the suggestion to the admin email
+ */
+exports.submitSuggestion = async (req, res) => {
+  try {
+    const { email, suggestion } = req.body;
+
+    if (!email || !suggestion) {
+      return res.status(400).json({ message: "Please provide both email and suggestion" });
+    }
+
+    // Check if the email exists in the database
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(404).json({ message: "Email not found. Please register first." });
+    }
+
+    // Send the suggestion email
+    await transporter.sendMail({
+      to: process.env.ADMIN_EMAIL, // Set your admin email here
+      subject: `Suggestion from ${user.email}`,
+      html: `
+        <div>
+          <h3>New Suggestion from ${user.email}</h3>
+          <p><strong>Suggestion:</strong> ${suggestion}</p>
+        </div>
+      `
+    });
+
+    return res.status(200).json({ message: "Suggestion submitted successfully" });
+  } catch (error) {
+    console.error('Submit suggestion error:', error);
+    return res.status(500).json({ message: "Something went wrong" });
+  }
 };

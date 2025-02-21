@@ -161,40 +161,43 @@ exports.updatePassword = async (req, res) => {
       if (!validateEditProfileData(req)) {
         throw new Error("Invalid Edit Request");
       }
-  
-      // Find and update user with explicit field selection
-      const user = await User.findByIdAndUpdate(
-        req.user._id,
-        {
-          $set: {
-            firstName: req.body.firstName,
-            lastName: req.body.lastName,
-            photoUrl: req.body.photoUrl
-          }
-        },
-        { 
-          new: true,
-          runValidators: true,
-          select: '+phoneVerified' // Explicitly include phoneVerified
-        }
-      ).select('-password -loginAttempts -lockUntil');
-  
-      if (!user) {
-        throw new Error("User not found");
+
+      // Check if the phone number is verified
+      if (user.phoneVerified) {
+        return res.status(403).json({ message: "Phone number is already verified and cannot be updated." });
       }
-  
+
+      // Validate phone number format (10 digits)
+      const phoneRegex = /^\d{10}$/; // Regex for 10 digits
+      if (phoneNumber && !phoneRegex.test(phoneNumber)) {
+        return res.status(400).json({ message: "Phone number must be 10 digits." });
+      }
+
+      // Add +91 prefix if not already present
+      if (phoneNumber && !phoneNumber.startsWith('+91')) {
+        user.phoneNumber = `+91${phoneNumber}`;
+      } else {
+        user.phoneNumber = phoneNumber; // Update phone number if provided
+      }
+
+      // Update other user fields
+      user.firstName = firstName || user.firstName;
+      user.lastName = lastName || user.lastName;
+      user.photoUrl = photoUrl || user.photoUrl;
+      user.phoneVerified = false;
+      await user.save();
+
       return res.status(200).json({
         success: true,
         message: `${user.firstName}, your profile has been updated!`,
         data: {
           user: {
             ...user.toObject({ virtuals: true }),
-            phoneVerified: user.phoneVerified // Explicitly include
-          },
-          token: req.cookies.token
+            phoneVerified: user.phoneVerified
+          }
         }
       });
-  
+
     } catch (err) {
       res.status(400).json({ 
         success: false,
@@ -223,6 +226,7 @@ exports.updatePassword = async (req, res) => {
       res.status(400).json({ error: err.message });
     }
   };
+  
   
   // Verify OTP for Phone Verification
 exports.verifyOTP = async (req, res) => {
